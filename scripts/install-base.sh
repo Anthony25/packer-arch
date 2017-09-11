@@ -9,90 +9,143 @@ else
 	DISK='/dev/sda'
 fi
 
-FQDN='vagrant-arch.vagrantup.com'
-KEYMAP='us'
-LANGUAGE='en_US.UTF-8'
-PASSWORD=$(/usr/bin/openssl passwd -crypt 'vagrant')
-TIMEZONE='UTC'
-
-CONFIG_SCRIPT='/usr/local/bin/arch-config.sh'
 ROOT_PARTITION="${DISK}1"
 TARGET_DIR='/mnt'
-COUNTRY=${COUNTRY:-US}
-MIRRORLIST="https://www.archlinux.org/mirrorlist/?country=${COUNTRY}&protocol=http&protocol=https&ip_version=4&use_mirror_status=on"
+CONF_DIR="/home/packer/conf"
 
-echo "==> Setting local mirror"
-curl -s "$MIRRORLIST" |  sed 's/^#Server/Server/' > /etc/pacman.d/mirrorlist
 
-echo "==> Clearing partition table on ${DISK}"
-/usr/bin/sgdisk --zap ${DISK}
+install_os() {
+    partition_disk
+    format_first_partition_in_ext
+    mount_root_partition
 
-echo "==> Destroying magic strings and signatures on ${DISK}"
-/usr/bin/dd if=/dev/zero of=${DISK} bs=512 count=2048
-/usr/bin/wipefs --all ${DISK}
+    install_pkg
+    enable_systemd_services
+    disable_predictable_interfaces
+    enable_dhcp_on_eth0
+    add_ssh_keys
 
-echo "==> Creating /root partition on ${DISK}"
-/usr/bin/sgdisk --new=1:0:0 ${DISK}
+    setup_syslinux
+    build_kernel_img
+    clean_up
+}
 
-echo "==> Setting ${DISK} bootable"
-/usr/bin/sgdisk ${DISK} --attributes=1:set:2
+partition_disk() {
+    echo "==> Clearing partition table on ${DISK}"
+    sgdisk --zap ${DISK}
 
-echo '==> Creating /root filesystem (ext4)'
-/usr/bin/mkfs.ext4 -O ^64bit -F -m 0 -q -L root ${ROOT_PARTITION}
+    echo "==> Destroying magic strings and signatures on ${DISK}"
+    dd if=/dev/zero of=${DISK} bs=512 count=2048
+    wipefs --all ${DISK}
 
-echo "==> Mounting ${ROOT_PARTITION} to ${TARGET_DIR}"
-/usr/bin/mount -o noatime,errors=remount-ro ${ROOT_PARTITION} ${TARGET_DIR}
+    echo "==> Creating /root partition on ${DISK}"
+    sgdisk --new=1:0:0 ${DISK}
 
-echo '==> Bootstrapping the base installation'
-/usr/bin/pacstrap ${TARGET_DIR} base base-devel
-/usr/bin/arch-chroot ${TARGET_DIR} pacman -S --noconfirm gptfdisk openssh syslinux
-/usr/bin/arch-chroot ${TARGET_DIR} syslinux-install_update -i -a -m
-/usr/bin/sed -i "s|sda3|${ROOT_PARTITION##/dev/}|" "${TARGET_DIR}/boot/syslinux/syslinux.cfg"
-/usr/bin/sed -i 's/TIMEOUT 50/TIMEOUT 10/' "${TARGET_DIR}/boot/syslinux/syslinux.cfg"
+    echo "==> Setting ${DISK} bootable"
+    sgdisk ${DISK} --attributes=1:set:2
+}
 
-echo '==> Generating the filesystem table'
-/usr/bin/genfstab -p ${TARGET_DIR} >> "${TARGET_DIR}/etc/fstab"
+format_first_partition_in_ext() {
+    echo '==> Creating /root filesystem (ext4)'
+    mkfs.ext4 -F -q -L root ${ROOT_PARTITION}
+}
 
-echo '==> Generating the system configuration script'
-/usr/bin/install --mode=0755 /dev/null "${TARGET_DIR}${CONFIG_SCRIPT}"
+mount_root_partition() {
+    echo "==> Mounting ${ROOT_PARTITION} to ${TARGET_DIR}"
+    mount -o noatime,errors=remount-ro ${ROOT_PARTITION} ${TARGET_DIR}
+}
 
-cat <<-EOF > "${TARGET_DIR}${CONFIG_SCRIPT}"
-	echo '${FQDN}' > /etc/hostname
-	/usr/bin/ln -s /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
-	echo 'KEYMAP=${KEYMAP}' > /etc/vconsole.conf
-	/usr/bin/sed -i 's/#${LANGUAGE}/${LANGUAGE}/' /etc/locale.gen
-	/usr/bin/locale-gen
-	/usr/bin/mkinitcpio -p linux
-	/usr/bin/usermod --password ${PASSWORD} root
-	# https://wiki.archlinux.org/index.php/Network_Configuration#Device_names
-	/usr/bin/ln -s /dev/null /etc/udev/rules.d/80-net-setup-link.rules
-	/usr/bin/ln -s '/usr/lib/systemd/system/dhcpcd@.service' '/etc/systemd/system/multi-user.target.wants/dhcpcd@eth0.service'
-	/usr/bin/sed -i 's/#UseDNS yes/UseDNS no/' /etc/ssh/sshd_config
-	/usr/bin/systemctl enable sshd.service
+install_pkg() {
+    echo '==> Install packages'
+    pacstrap ${TARGET_DIR} base base-devel
 
-	# Vagrant-specific configuration
-	/usr/bin/useradd --password ${PASSWORD} --comment 'Vagrant User' --create-home --user-group vagrant
-	echo 'Defaults env_keep += "SSH_AUTH_SOCK"' > /etc/sudoers.d/10_vagrant
-	echo 'vagrant ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers.d/10_vagrant
-	/usr/bin/chmod 0440 /etc/sudoers.d/10_vagrant
-	/usr/bin/install --directory --owner=vagrant --group=vagrant --mode=0700 /home/vagrant/.ssh
-	/usr/bin/curl --output /home/vagrant/.ssh/authorized_keys --location https://raw.github.com/mitchellh/vagrant/master/keys/vagrant.pub
-	/usr/bin/chown vagrant:vagrant /home/vagrant/.ssh/authorized_keys
-	/usr/bin/chmod 0600 /home/vagrant/.ssh/authorized_keys
+    /usr/bin/arch-chroot ${TARGET_DIR} \
+        pacman -S --noconfirm gptfdisk openssh syslinux python2 haveged
+}
 
-	# clean up
-	/usr/bin/pacman -Rcns --noconfirm gptfdisk
-EOF
+enable_systemd_services() {
+    echo '==> Enable needed systemd services'
 
-echo '==> Entering chroot and configuring system'
-/usr/bin/arch-chroot ${TARGET_DIR} ${CONFIG_SCRIPT}
-rm "${TARGET_DIR}${CONFIG_SCRIPT}"
+    arch-chroot "${TARGET_DIR}" \
+        systemctl enable sshd systemd-networkd systemd-resolved haveged \
+            getty@ttyS0
+}
 
-# http://comments.gmane.org/gmane.linux.arch.general/48739
-echo '==> Adding workaround for shutdown race condition'
-/usr/bin/install --mode=0644 /root/poweroff.timer "${TARGET_DIR}/etc/systemd/system/poweroff.timer"
+disable_predictable_interfaces() {
+    echo '==> Disable predictable interfaces'
+
+	ln -s /dev/null "${TARGET_DIR}"/etc/udev/rules.d/80-net-setup-link.rules
+}
+
+enable_dhcp_on_eth0() {
+    SYSTEMD_NETWORKD_PROFILE=$(echo \
+        $'[Match]' \
+        $'\nName=eth0' \
+        $'\n' \
+        $'\n[Network]' \
+        $'\nDHCP=yes' \
+    )
+
+    if [ -n "${IP4}" ]; then
+        SYSTEMD_NETWORKD_PROFILE+=$'\n'"ADDRESS=${IP4}"
+    fi
+
+    if [ -n "${IP6}" ]; then
+        SYSTEMD_NETWORKD_PROFILE+=$'\n'"ADDRESS=${IP6}"
+    fi
+
+    echo "${SYSTEMD_NETWORKD_PROFILE}" > \
+        "${TARGET_DIR}/etc/systemd/network/eth0.network"
+    rm "${TARGET_DIR}"/etc/resolv.conf
+    ln -s /run/systemd/resolve/resolv.conf "${TARGET_DIR}"/etc/resolv.conf
+}
+
+add_ssh_keys() {
+    echo '==> Add SSH keys'
+
+    mkdir -p "${TARGET_DIR}/root/.ssh"
+    chmod 700 "${TARGET_DIR}/root/.ssh"
+    echo "${AUTHORIZED_KEYS}" >> "${TARGET_DIR}/root/.ssh/authorized_keys"
+    chmod 600 "${TARGET_DIR}/root/.ssh/authorized_keys"
+}
+
+setup_syslinux() {
+    echo '==> Setup and configures Syslinux'
+
+    /usr/bin/arch-chroot ${TARGET_DIR} syslinux-install_update -i -a -m
+    /usr/bin/sed -i \
+        "s|sda3|${ROOT_PARTITION##/dev/}|" \
+        "${TARGET_DIR}/boot/syslinux/syslinux.cfg"
+    /usr/bin/sed -i \
+        's/TIMEOUT 50/TIMEOUT 10/' \
+        "${TARGET_DIR}/boot/syslinux/syslinux.cfg"
+}
+
+build_kernel_img() {
+    echo '==> Build kernel'
+
+    cp "$CONF_DIR"/mkinitcpio.conf "${TARGET_DIR}"/etc/mkinitcpio.conf
+    chmod 644 "${TARGET_DIR}"/etc/mkinitcpio.conf
+
+    arch-chroot "${TARGET_DIR}" mkinitcpio -p linux
+}
+
+clean_up() {
+    echo '==> Clean Up'
+
+	arch-chroot "${TARGET_DIR}" pacman -Rcns --noconfirm gptfdisk
+	arch-chroot "${TARGET_DIR}" pacman -Scc --noconfirm
+	arch-chroot "${TARGET_DIR}" pacman-optimize
+
+    zerofile=$(mktemp "${TARGET_DIR}"/zerofile.XXXXX)
+    dd if=/dev/zero of="\$zerofile" bs=1M;
+    rm -f "\$zerofile"
+    sync
+}
+
+
+install_os
 
 echo '==> Installation complete!'
 /usr/bin/sleep 3
 /usr/bin/umount ${TARGET_DIR}
-/usr/bin/systemctl reboot
