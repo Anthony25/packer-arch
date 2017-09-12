@@ -6,7 +6,7 @@
         "ssh_timeout": "20m",
         "country": "US",
         "headless": "true",
-        "disk_size": "4096",
+        "disk_size": "5120",
         "format": "qcow2",
         "disk_name": "img",
         "authorized_keys": "",
