@@ -12,7 +12,7 @@
         "authorized_keys": "",
         "ip4": "",
         "ip6": "",
-        "http_serv": "http://{{ .HTTPIP }}:{{ .HTTPPort }}"
+        "mirrorlist": ""
     },
     "builders": [
         {
@@ -46,7 +46,7 @@
         },
         {
             "type": "shell",
-            "execute_command": "{{ .Vars }} AUTHORIZED_KEYS=\"{{ user `authorized_keys` }}\" IP4=\"{{ user `ip4` }}\" IP6=\"{{ user `ip6` }}\" sudo -E -S bash '{{ .Path }}'",
+            "execute_command": "{{ .Vars }} AUTHORIZED_KEYS='{{ user `authorized_keys` }}' IP4='{{ user `ip4` }}' IP6='{{ user `ip6` }}' MIRRORLIST='{{ user `mirrorlist` }}' sudo -E -S bash '{{ .Path }}'",
             "script": "scripts/install-base.sh"
         }
     ]

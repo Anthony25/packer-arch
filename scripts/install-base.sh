@@ -19,6 +19,7 @@ install_os() {
     format_first_partition_in_ext
     mount_root_partition
 
+    setup_live_mirrorlist
     install_pkg
     enable_systemd_services
     disable_predictable_interfaces
@@ -55,12 +56,20 @@ mount_root_partition() {
     mount -o noatime,errors=remount-ro ${ROOT_PARTITION} ${TARGET_DIR}
 }
 
+setup_live_mirrorlist() {
+    if [ -n "${MIRRORLIST}" ]; then
+        echo '==> Setup live mirrorlist'
+        echo "${MIRRORLIST}" > /etc/pacman.d/mirrorlist
+    fi
+}
+
 install_pkg() {
     echo '==> Install packages'
     pacstrap ${TARGET_DIR} base base-devel
 
     /usr/bin/arch-chroot ${TARGET_DIR} \
         pacman -S --noconfirm gptfdisk openssh syslinux python2 haveged
+    install -o root -g root -m 644 {,"${TARGET_DIR}"}/etc/pacman.d/mirrorlist
 }
 
 enable_systemd_services() {
