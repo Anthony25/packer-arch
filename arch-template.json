@@ -8,7 +8,7 @@
         "headless": "true",
         "disk_size": "5120",
         "format": "qcow2",
-        "disk_name": "img",
+        "hostname": "localhost",
         "authorized_keys": "",
         "ip4": "",
         "ip6": "",
@@ -33,7 +33,7 @@
              ],
             "disk_size": "{{ user `disk_size` }}",
             "format": "{{ user `format` }}",
-            "vm_name": "{{ user `disk_name` }}.{{ user `format` }}",
+            "vm_name": "{{ user `hostname` }}.{{ user `format` }}",
             "shutdown_command": "sudo shutdown -h now",
             "headless" : "{{ user `headless`}}"
         }
