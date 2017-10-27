@@ -48,7 +48,7 @@ partition_disk() {
 
 format_first_partition_in_ext() {
     echo '==> Creating /root filesystem (ext4)'
-    mkfs.ext4 -F -q -L root ${ROOT_PARTITION}
+    mkfs.ext4 -O '^64bit' -F -q -L root ${ROOT_PARTITION}
 }
 
 mount_root_partition() {
