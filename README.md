@@ -41,7 +41,7 @@ this repo and go:
 It is possible to tweak the defined variables (see arch-template.json for more
 details):
 
-    $ packer build -vars ip4="192.168.0.10/24" arch-template.json
+    $ packer build -var ip4="192.168.0.10/24" arch-template.json
 
 By default, the template enable DHCP and IPv6 autoconf, but a static IPv4 or
 IPv6 can also be specified through the variables `ip4` and `ip6`.
