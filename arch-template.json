@@ -10,6 +10,8 @@
         "disk_size": "5120",
         "format": "qcow2",
         "hostname": "localhost",
+        "http_port_min": "8000",
+        "http_port_max": "9000",
         "authorized_keys": "",
         "ip4": "",
         "ip6": "",
@@ -26,6 +28,8 @@
             "shutdown_timeout": "30s",
             "ssh_username": "packer",
             "ssh_password": "packer",
+            "http_port_min": "{{ user `http_port_min` }}",
+            "http_port_max": "{{ user `http_port_max` }}",
             "ssh_timeout": "{{ user `ssh_timeout` }}",
             "boot_command": [
                 "<enter><wait{{ user `post_bootloader_wait` }}>",
