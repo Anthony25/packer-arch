@@ -13,7 +13,7 @@
         "http_port_min": "8000",
         "http_port_max": "9000",
         "ssh_host_port_min": "2222",
-        "ssh_host_port_max": "2229",
+        "ssh_host_port_max": "4444",
         "authorized_keys": "",
         "ip4": "",
         "ip6": "",
