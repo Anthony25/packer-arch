@@ -1,0 +1,17 @@
+---
+language: go
+sudo: required
+
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y git qemu-kvm
+
+install:
+  - mkdir -p $GOPATH/src/github.com/hashicorp && cd $_
+  - git clone https://github.com/hashicorp/packer.git
+  - cd packer
+  - make dev
+  - cd "$TRAVIS_BUILD_DIR"
+
+script:
+  - sudo packer build -var 'boot_wait=1m' arch-template.json
