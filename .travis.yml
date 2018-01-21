@@ -14,4 +14,8 @@ install:
   - cd "$TRAVIS_BUILD_DIR"
 
 script:
-  - travis_wait 45 sudo packer build -var 'boot_wait=1m' arch-template.json
+  - |
+    travis_wait 45 sudo packer build \
+        -var 'boot_wait=30s' \
+        -var 'post_bootloader_wait=2m' \
+        arch-template.json
