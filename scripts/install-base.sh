@@ -62,7 +62,7 @@ setup_live_mirrorlist() {
         echo "${MIRRORLIST}" > /etc/pacman.d/mirrorlist
     else
         pacman -Sy --noconfirm reflector
-        reflector --latest 200 --protocol http --protocol https --sort rate \
+        reflector --latest 20 --protocol http --protocol https --sort rate \
             --save /etc/pacman.d/mirrorlist
     fi
 }
