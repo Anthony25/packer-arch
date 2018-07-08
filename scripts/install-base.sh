@@ -148,7 +148,6 @@ clean_up() {
 
 	arch-chroot "${TARGET_DIR}" pacman -Rcns --noconfirm gptfdisk
 	arch-chroot "${TARGET_DIR}" pacman -Scc --noconfirm
-	arch-chroot "${TARGET_DIR}" pacman-optimize
 
     zerofile=$(mktemp "${TARGET_DIR}"/zerofile.XXXXX)
     dd if=/dev/zero of="$zerofile" bs=1M || true
