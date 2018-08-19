@@ -62,7 +62,7 @@ setup_live_mirrorlist() {
         echo "${MIRRORLIST}" > /etc/pacman.d/mirrorlist
     else
         pacman -Sy --noconfirm archlinux-keyring
-        pacman -Sy --noconfirm reflector
+        pacman -Sy --noconfirm reflector python
         reflector --latest 20 --protocol http --protocol https --sort rate \
             --save /etc/pacman.d/mirrorlist
     fi
