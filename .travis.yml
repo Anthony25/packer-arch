@@ -5,7 +5,7 @@ go: "master"
 
 before_install:
   - sudo apt-get -qq update
-  - sudo apt-get install -y git qemu-kvm
+  - sudo apt-get install -y git qemu-kvm qemu-utils qemu-block-extra
 
 install:
   - mkdir -p $GOPATH/src/github.com/hashicorp && cd $_
