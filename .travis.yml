@@ -1,23 +1,20 @@
 ---
-language: go
 sudo: required
-go: "master"
 
 before_install:
   - sudo apt-get -qq update
-  - sudo apt-get install -y git qemu-kvm qemu-utils qemu-block-extra
+  - sudo apt-get install -y unzip qemu-kvm qemu-utils qemu-block-extra
 
 install:
-  - mkdir -p $GOPATH/src/github.com/hashicorp && cd $_
-  - git clone https://github.com/hashicorp/packer.git
-  - cd packer
-  - git checkout v1.6.2
-  - make dev
+  - wget https://releases.hashicorp.com/packer/1.6.2/packer_1.6.2_linux_amd64.zip -O packer.zip
+  - unzip packer.zip
+  - sudo mv packer /usr/bin/packer
+  - rm packer.zip
   - cd "$TRAVIS_BUILD_DIR"
 
 script:
   - |
-    travis_wait 60 sudo packer build \
+    travis_wait 60 sudo /usr/bin/packer build \
         -var 'boot_wait=30s' \
         -var 'post_bootloader_wait=2m' \
         arch-template.json
