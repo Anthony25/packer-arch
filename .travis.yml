@@ -11,6 +11,7 @@ install:
   - mkdir -p $GOPATH/src/github.com/hashicorp && cd $_
   - git clone https://github.com/hashicorp/packer.git
   - cd packer
+  - git checkout v1.6.2
   - make dev
   - cd "$TRAVIS_BUILD_DIR"
 
