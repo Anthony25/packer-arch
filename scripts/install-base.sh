@@ -70,7 +70,7 @@ setup_live_mirrorlist() {
 
 install_pkg() {
     echo '==> Install packages'
-    pacstrap ${TARGET_DIR} base base-devel
+    pacstrap ${TARGET_DIR} base base-devel linux
 
     /usr/bin/arch-chroot ${TARGET_DIR} \
         pacman -S --noconfirm gptfdisk openssh syslinux python2 haveged
